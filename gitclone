@@ -1,1 +1,117 @@
 https://github.com/prasanthrangan/hyprdots
+
+
+The errors you are encountering indicate that the `nvidia` modules are not found during the generation of the initramfs. This typically happens if the NVIDIA drivers are not properly installed or if the system cannot locate the necessary modules.
+
+Here's a checklist to troubleshoot and resolve the issue:
+
+### 1. Verify NVIDIA Driver Installation
+Ensure that the NVIDIA drivers are correctly installed. For the GeForce GT 210, you should have the `nvidia-340xx` driver installed.
+
+```bash
+pacman -Qs nvidia
+```
+
+### 2. Reinstall NVIDIA Drivers
+If the drivers are not correctly installed, reinstall them:
+
+```bash
+sudo pacman -Syu
+sudo pacman -S nvidia-340xx nvidia-340xx-utils
+```
+
+### 3. Verify Kernel Headers
+Ensure that the `linux-headers` package is installed and matches your running kernel version:
+
+```bash
+uname -r
+pacman -Q linux-headers
+```
+
+### 4. Check Module Availability
+Check if the NVIDIA modules are available in the `/usr/lib/modules/$(uname -r)/kernel/drivers/video/` directory:
+
+```bash
+ls /usr/lib/modules/$(uname -r)/kernel/drivers/video/
+```
+
+### 5. Remove and Rebuild initramfs
+Sometimes, regenerating the initramfs after ensuring the drivers are properly installed can resolve the issue:
+
+1. **Remove previous initramfs:**
+   ```bash
+   sudo rm /boot/initramfs-linux.img
+   sudo rm /boot/initramfs-linux-fallback.img
+   ```
+
+2. **Regenerate initramfs:**
+   ```bash
+   sudo mkinitcpio -P
+   ```
+
+### 6. Ensure NVIDIA Hook is Properly Configured
+Make sure the Pacman hook is correctly configured to trigger the initramfs rebuild after NVIDIA driver installation.
+
+1. **Create/Edit the Pacman hook file:**
+   ```bash
+   sudo nano /etc/pacman.d/hooks/nvidia.hook
+   ```
+
+2. **Add the following content:**
+   ```ini
+   [Trigger]
+   Operation=Install
+   Operation=Upgrade
+   Operation=Remove
+   Type=Package
+   Target=nvidia
+   Target=nvidia-340xx
+   Target=linux
+
+   [Action]
+   Description=Update NVIDIA module in initramfs
+   Depends=mkinitcpio
+   When=PostTransaction
+   NeedsTargets
+   Exec=/usr/bin/mkinitcpio -P
+   ```
+
+### 7. Manual Loading of NVIDIA Modules
+Try manually loading the NVIDIA modules to check for any errors:
+
+```bash
+sudo modprobe nvidia
+sudo modprobe nvidia_modeset
+sudo modprobe nvidia_uvm
+sudo modprobe nvidia_drm
+```
+
+Check `dmesg` for any errors:
+
+```bash
+dmesg | grep -i nvidia
+```
+
+### 8. Reboot and Verify
+After performing the above steps, reboot the system:
+
+```bash
+sudo reboot
+```
+
+After rebooting, verify if the NVIDIA modules are loaded:
+
+```bash
+lsmod | grep nvidia
+nvidia-smi
+```
+
+### Summary
+1. Verify and reinstall NVIDIA drivers.
+2. Ensure `linux-headers` matches your kernel.
+3. Remove and regenerate initramfs.
+4. Check NVIDIA module availability.
+5. Configure and verify the Pacman hook.
+6. Manually load NVIDIA modules and check for errors.
+
+These steps should help in resolving the issue with the missing NVIDIA modules during the initramfs generation. If the problem persists, please provide any error messages or logs for further assistance.
